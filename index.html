@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minerva – Productivity App</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+
+    <section id="loginPage" class="page active">
+      <div class="header">
+        <h1>Minerva</h1>
+        <p>Welcome back</p>
+      </div>
+      <form id="loginForm">
+        <h2>Login</h2>
+        <input type="email" id="loginEmail" placeholder="Email" required />
+        <input type="password" id="loginPassword" placeholder="Password" required />
+        <button type="submit">Login</button>
+        <p>Don’t have an account? <a href="#" id="goToSignup">Sign up</a></p>
+      </form>
+    </section>
+
+
+    <section id="signupPage" class="page">
+      <div class="header">
+        <h1>Minerva</h1>
+        <p>Create your account</p>
+      </div>
+      <form id="signupForm">
+        <h2>Sign up</h2>
+        <input type="email" id="signupEmail" placeholder="Email" required />
+        <input type="password" id="signupPassword" placeholder="Password (min 6)" required />
+        <button type="submit">Create Account</button>
+        <p>Already have an account? <a href="#" id="goToLogin">Login</a></p>
+      </form>
+    </section>
+
+
+    <section id="dashboard" class="page">
+      <header class="header">
+        <h1>Minerva</h1>
+        <p>Dashboard</p>
+      </header>
+
+      <button id="menuBtn" class="menu-btn">
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+      </button>
+
+      <div id="menuDropdown" class="menu-dropdown">
+        <a href="#" onclick="showPage('profile')">Profile</a>
+        <a href="#" id="logoutBtn">Logout</a>
+      </div>
+
+      <div class="streak">
+        Streak: <span id="streakCount">0</span> days 🔥
+        <button id="checkInBtn">Tap to Check In Today</button>
+        <p id="checkInStatus"></p>
+      </div>
+
+      <div class="tabs">
+        <button data-tab="taskFocus" class="active">To‑Do / Pomodoro</button>
+        <button data-tab="activities">Activities</button>
+        <button data-tab="budget">Budget</button>
+      </div>
+
+      <div id="taskFocus" class="tab-content active">
+        <h2>To‑Do & Pomodoro</h2>
+        <div class="pomodoro-panel">
+          <h3>Pomodoro Timer</h3>
+          <div class="pomodoro-nav">
+            <button data-pomodoro-mode="pomodoro" class="pomodoro-nav-btn active">Pomodoro (25)</button>
+            <button data-pomodoro-mode="shortBreak" class="pomodoro-nav-btn">Short Break (5)</button>
+            <button data-pomodoro-mode="longBreak" class="pomodoro-nav-btn">Long Break (15)</button>
+          </div>
+          <div class="pomodoro-timer">25:00</div>
+          
+          <div id="pomodoroScreen" class="pomodoro-screen active">
+            <div class="break-section">
+              <h4>Work Session</h4>
+              <div class="buttons-row">
+                <button id="pomodoroStart">Start</button>
+                <button id="pomodoroPause">Pause</button>
+                <button id="pomodoroReset">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="shortBreakScreen" class="pomodoro-screen">
+            <div class="break-section">
+              <h4>Short Break</h4>
+              <div class="buttons-row">
+                <button id="shortBreakStart">Start</button>
+                <button id="shortBreakPause">Pause</button>
+                <button id="shortBreakReset">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="longBreakScreen" class="pomodoro-screen">
+            <div class="break-section">
+              <h4>Long Break</h4>
+              <div class="buttons-row">
+                <button id="longBreakStart">Start</button>
+                <button id="longBreakPause">Pause</button>
+                <button id="longBreakReset">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="todo-panel">
+          <h3>To‑Do List</h3>
+          <div style="display: flex;">
+            <input type="text" id="todoInput" placeholder="New task" />
+            <button id="addTodo">Add</button>
+          </div>
+          <ul id="todoList"></ul>
+        </div>
+      </div>
+
+      <div id="activities" class="tab-content">
+  <h2>Activity Tracker</h2>
+  <div class="chart-container" style="position: relative; height:40vh; width:100%">
+    <canvas id="activityChart"></canvas>
+  </div>
+  <div id="usageStats" style="text-align: center; margin-top: 15px; font-weight: bold;">
+    Today's Usage: <span id="minutesToday">0</span> minutes
+  </div>
+</div>
+
+     <div id="budget" class="tab-content">
+  <h2>Budget Tracker</h2>
+  
+  <div class="budget-summary">
+    <div class="summary-card">
+      <span>Balance</span>
+      <h3 id="totalBalance">$0.00</h3>
+    </div>
+    <div class="summary-card income">
+      <span>Income</span>
+      <h3 id="totalIncome">+$0.00</h3>
+    </div>
+    <div class="summary-card expense">
+      <span>Expenses</span>
+      <h3 id="totalExpense">-$0.00</h3>
+    </div>
+  </div>
+
+  <div class="budget-form">
+    <h3>Add New Transaction</h3>
+    <input type="text" id="budgetDesc" placeholder="Description">
+    <input type="number" id="budgetAmount" placeholder="Amount">
+    <small>Enter negative numbers for expenses</small>
+    <button id="addTransaction" style="margin-top: 10px; width: 100%;">Add Transaction</button>
+  </div>
+
+  <div class="history-panel">
+    <h3>History</h3>
+    <ul id="transactionList" class="transaction-list"></ul>
+  </div>
+</div>
+    </section>
+
+
+    <section id="profile" class="page">
+      <div class="header">
+        <h1>Minerva</h1>
+        <p>User Profile</p>
+      </div>
+      
+      <div class="profile-header">
+        <img src="avatar-placeholder.jpg" alt="User Avatar" class="avatar" id="profile-avatar">
+        <h3 id="profile-username">Muhammad</h3>
+        <p id="profile-phone">+60 123 456 789</p>
+        <p id="profile-email">muhammad@gmail.com</p>
+      </div>
+
+      <div class="profile-options">
+        <button id="dark-mode-toggle" class="profile-btn">Enable Dark Mode</button>
+        <button id="profile-settings" class="profile-btn">Profile Settings</button>
+        <button onclick="showPage('dashboard')" class="profile-btn">Back to Dashboard</button>
+        <button id="logout" class="profile-btn">Logout</button>
+      </div>
+    </section>
+
+    <section id="settingsPage" class="page">
+      <div class="header">
+        <h1>Settings</h1>
+        <p>Update your profile information</p>
+      </div>
+  
+      <form id="settingsForm">
+        <label>Username</label>
+        <input type="text" id="editUsername" placeholder="Enter name">
+        
+        <label>Telephone</label>
+        <input type="tel" id="editPhone" placeholder="Enter phone number">
+        
+        <label>Email</label>
+        <input type="email" id="editEmail" placeholder="Enter email">
+        
+        <button type="submit">Save Changes</button>
+        <button type="button" onclick="showPage('profile')" style="background: #666; margin-top: 5px;">Cancel</button>
+      </form>
+    </section>
+
+  </div> <script src="script.js"></script>
+</body>
+</html>

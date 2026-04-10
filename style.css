@@ -1,0 +1,531 @@
+/* =========================================
+   1. GLOBAL RESET & BASE STYLES
+========================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  background: linear-gradient(135deg, #f0f5ff, #e6f7ff);
+  overflow-x: hidden;
+  transition: background 0.3s ease;
+}
+
+/* =========================================
+   2. MAIN CONTAINER LAYOUT
+========================================= */
+.container {
+  width: 95vw;
+  max-width: 800px;
+  min-height: 90vh;
+  margin: 5vh auto;
+  padding: 24px;
+
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* =========================================
+   3. PAGE VISIBILITY CONTROL
+========================================= */
+.page {
+  display: none;              /* Hide all pages by default */
+  flex-direction: column;
+  width: 100%;
+}
+
+.page.active {
+  display: flex;              /* Only active page is visible */
+}
+
+/* =========================================
+   4. HEADER & TEXT STYLES
+========================================= */
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  color: #2c5aa0;
+  font-size: 2.2rem;
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+/* =========================================
+   5. FORMS (LOGIN / SIGNUP / SETTINGS)
+========================================= */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+form h2 {
+  text-align: center;
+  color: #444;
+}
+
+/* Inputs */
+input {
+  padding: 12px;
+  font-size: 1rem;
+
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+input:focus {
+  border-color: #2c5aa0;
+  outline: none;
+}
+
+/* =========================================
+   6. BUTTONS & TABS
+========================================= */
+button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+
+  background: #2c5aa0;
+  color: white;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: #1e4580;
+}
+
+/* Tabs Navigation */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tabs button {
+  flex: 1;
+  background: #f0f4ff;
+  color: #333;
+}
+
+.tabs button.active {
+  background: #2c5aa0;
+  color: white;
+  box-shadow: 0 4px 10px rgba(44, 90, 160, 0.3);
+}
+
+/* Tab Content Visibility */
+.tab-content {
+  display: none;
+  width: 100%;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* =========================================
+   7. POMODORO SECTION
+========================================= */
+.pomodoro-panel {
+  background: #f9fbff;
+  padding: 20px;
+  border-radius: 15px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Mode Navigation */
+.pomodoro-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.pomodoro-nav-btn {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+
+  background: #e0e7ff;
+  color: #2c5aa0;
+}
+
+/* Active Pomodoro Mode */
+.pomodoro-nav-btn.active {
+  background: #2c5aa0 !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(44, 90, 160, 0.4);
+}
+
+/* Timer Display */
+.pomodoro-timer {
+  font-size: 4rem;
+  font-weight: 800;
+  color: #2c5aa0;
+  margin: 10px 0;
+}
+
+/* Pomodoro Screens */
+.pomodoro-screen {
+  display: none;
+}
+
+.pomodoro-screen.active {
+  display: block;
+}
+
+/* Control Buttons */
+.buttons-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* =========================================
+   8. STREAK & TO-DO LIST
+========================================= */
+.streak {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 12px;
+
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+
+  color: #333;
+}
+
+/* To-Do Items */
+#todoList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 10px;
+
+  padding: 10px 15px;
+  margin-bottom: 8px;
+}
+
+/* =========================================
+   9. HAMBURGER MENU
+========================================= */
+.menu-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+
+  background: transparent;
+}
+
+.menu-btn .line {
+  width: 100%;
+  height: 3px;
+
+  background: #2c5aa0;
+  border-radius: 2px;
+}
+
+/* Dropdown */
+.menu-dropdown {
+  position: absolute;
+  top: 65px;
+  right: 20px;
+
+  display: none;
+  min-width: 140px;
+  z-index: 100;
+
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.menu-dropdown.active {
+  display: block;
+}
+
+.menu-dropdown a {
+  display: block;
+  padding: 12px 15px;
+  text-decoration: none;
+  color: #333;
+}
+
+/* =========================================
+   10. DARK MODE (GLOBAL)
+========================================= */
+body.dark-mode {
+  background: #121212;
+}
+
+body.dark-mode .container {
+  background: #1e1e1e;
+  color: #fff;
+}
+
+/* Text */
+body.dark-mode .header h1 { color: #82b1ff; }
+body.dark-mode .header p { color: #aaa; }
+
+/* Inputs */
+body.dark-mode input {
+  background: #2c2c2c;
+  color: #fff;
+  border-color: #444;
+}
+
+/* Tabs */
+body.dark-mode .tabs button {
+  background: #2c2c2c;
+  color: #ccc;
+}
+
+body.dark-mode .tabs button.active {
+  background: #82b1ff;
+  color: #000;
+}
+
+/* Pomodoro */
+body.dark-mode .pomodoro-panel { background: #252525; }
+body.dark-mode .pomodoro-timer { color: #82b1ff; }
+
+/* Streak */
+body.dark-mode .streak {
+  background: #2d2a1e;
+  border-color: #ffd54f;
+  color: #fff;
+}
+
+body.dark-mode #streakCount {
+  color: #ffca28;
+  font-weight: bold;
+}
+
+body.dark-mode #checkInBtn {
+  background: #ffca28;
+  color: #000;
+}
+
+/* Pomodoro Buttons */
+body.dark-mode .pomodoro-nav-btn {
+  background: #333;
+  color: #82b1ff;
+}
+
+body.dark-mode .pomodoro-nav-btn.active {
+  background: #82b1ff !important;
+  color: #000 !important;
+}
+
+/* Menu */
+body.dark-mode .menu-dropdown { background: #2c2c2c; }
+body.dark-mode .menu-dropdown a { color: #eee; }
+
+/* =========================================
+   11. DARK MODE - TO-DO FIXES
+========================================= */
+body.dark-mode #todoList li {
+  background: #2c2c2c;
+  border-color: #444;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+body.dark-mode #todoList li span { color: #ffffff; }
+
+body.dark-mode #todoList li button {
+  background: #ff4d4d;
+  color: white;
+}
+
+body.dark-mode #todoInput {
+  background: #2c2c2c;
+  color: white;
+}
+
+body.dark-mode #todoInput::placeholder {
+  color: #888;
+}
+
+/* =========================================
+   12. PROFILE PAGE
+========================================= */
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  margin-bottom: 30px;
+}
+
+.avatar {
+  width: 120px;
+  height: 120px;
+
+  border-radius: 50%;
+  object-fit: cover;
+
+  background-color: #f0f0f0;
+  border: 3px solid #2c5aa0;
+  margin-bottom: 15px;
+}
+
+/* Vertical Button Layout */
+.profile-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.profile-btn {
+  width: 100%;
+  padding: 14px;
+  text-align: center;
+}
+
+/* Dark Mode Avatar */
+body.dark-mode .avatar {
+  background-color: #333;
+  border-color: #82b1ff;
+}
+
+/* Settings Form */
+#settingsForm label {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #2c5aa0;
+
+  margin-bottom: -10px;
+  margin-left: 5px;
+}
+
+body.dark-mode #settingsForm label {
+  color: #82b1ff;
+}
+
+/* =========================================
+   13. BUDGET TRACKER
+========================================= */
+.budget-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  flex: 1;
+  padding: 15px;
+  text-align: center;
+
+  background: #f0f4ff;
+  border-radius: 12px;
+}
+
+.summary-card.income h3 { color: #2ecc71; }
+.summary-card.expense h3 { color: #e74c3c; }
+
+/* Form */
+.budget-form {
+  background: #f9fbff;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+/* Transactions */
+.transaction-list {
+  list-style: none;
+  margin-top: 10px;
+}
+
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 12px;
+  margin-bottom: 8px;
+
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  border-left: 5px solid #ccc;
+}
+
+.transaction-item.plus { border-left-color: #2ecc71; }
+.transaction-item.minus { border-left-color: #e74c3c; }
+
+/* Dark Mode Budget */
+body.dark-mode .summary-card { background: #2c2c2c; }
+body.dark-mode .budget-form { background: #252525; }
+body.dark-mode .transaction-item {
+  background: #2c2c2c;
+  border-color: #444;
+}
+
+/* =========================================
+   14. ACTIVITY CHART
+========================================= */
+.chart-container {
+  background: #f9fbff;
+  padding: 20px;
+  border-radius: 15px;
+  margin-top: 10px;
+
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+}
+
+body.dark-mode .chart-container {
+  background: #252525;
+}
+
+/* Usage Stats */
+#usageStats {
+  color: #2c5aa0;
+}
+
+body.dark-mode #usageStats {
+  color: #82b1ff;
+}
