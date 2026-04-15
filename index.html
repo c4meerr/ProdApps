@@ -4,73 +4,139 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Minerva – Productivity App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
 
+    <!-- ===== LOGIN PAGE ===== -->
     <section id="loginPage" class="page active">
       <div class="header">
         <h1>Minerva</h1>
-        <p>Welcome back</p>
+        <p>Your personal productivity companion</p>
       </div>
       <form id="loginForm">
-        <h2>Login</h2>
-        <input type="email" id="loginEmail" placeholder="Email" required />
+        <h2>Welcome back</h2>
+        <input type="email" id="loginEmail" placeholder="Email address" required />
         <input type="password" id="loginPassword" placeholder="Password" required />
-        <button type="submit">Login</button>
-        <p>Don’t have an account? <a href="#" id="goToSignup">Sign up</a></p>
+        <button type="submit">Sign in</button>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.875rem;">Don't have an account? <a href="#" id="goToSignup" style="color:var(--accent); text-decoration:none; font-weight:500;">Create one</a></p>
       </form>
     </section>
 
-
+    <!-- ===== SIGNUP PAGE ===== -->
     <section id="signupPage" class="page">
       <div class="header">
         <h1>Minerva</h1>
-        <p>Create your account</p>
+        <p>Start your productivity journey</p>
       </div>
       <form id="signupForm">
-        <h2>Sign up</h2>
-        <input type="email" id="signupEmail" placeholder="Email" required />
-        <input type="password" id="signupPassword" placeholder="Password (min 6)" required />
-        <button type="submit">Create Account</button>
-        <p>Already have an account? <a href="#" id="goToLogin">Login</a></p>
+        <h2>Create account</h2>
+        <input type="email" id="signupEmail" placeholder="Email address" required />
+        <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required />
+
+        <div class="plan-select-wrapper">
+          <p class="plan-select-label">Choose your plan</p>
+          <div class="plan-cards">
+            <label class="plan-card" id="planCardFree">
+              <input type="radio" name="plan" value="free" checked />
+              <div class="plan-card-inner">
+                <span class="plan-icon">🎒</span>
+                <span class="plan-name">Free</span>
+                <ul class="plan-features-mini">
+                  <li>Basic task manager</li>
+                  <li>Up to 3 projects</li>
+                  <li>Daily planner</li>
+                  <li>Pomodoro timer</li>
+                </ul>
+              </div>
+            </label>
+            <label class="plan-card" id="planCardPro">
+              <input type="radio" name="plan" value="pro" />
+              <div class="plan-card-inner">
+                <span class="plan-icon">⭐</span>
+                <span class="plan-name">Student Pro</span>
+                <ul class="plan-features-mini">
+                  <li>Unlimited projects</li>
+                  <li>Habit tracker</li>
+                  <li>Focus sounds</li>
+                  <li>Analytics + Streaks</li>
+                </ul>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit">Create account</button>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.875rem;">Already have an account? <a href="#" id="goToLogin" style="color:var(--accent); text-decoration:none; font-weight:500;">Sign in</a></p>
       </form>
     </section>
 
-
+    <!-- ===== DASHBOARD ===== -->
     <section id="dashboard" class="page">
       <header class="header">
         <h1>Minerva</h1>
         <p>Dashboard</p>
       </header>
 
-      <button id="menuBtn" class="menu-btn">
-        <span class="line"></span>
-        <span class="line"></span>
-        <span class="line"></span>
+      <div id="proBadgeHeader" class="pro-badge-header" style="display:none; margin: -16px auto 16px; width:fit-content;">⭐ Student Pro</div>
+
+      <button id="menuBtn" class="menu-btn" aria-label="Menu">
+        <span class="line"></span><span class="line"></span><span class="line"></span>
       </button>
 
       <div id="menuDropdown" class="menu-dropdown">
-        <a href="#" onclick="showPage('profile')">Profile</a>
-        <a href="#" id="logoutBtn">Logout</a>
+        <a href="#" onclick="showPage('profile')">👤 Profile</a>
+        <a href="#" onclick="showPage('leaderboardPage')">🏆 Leaderboard</a>
+        <a href="#" id="logoutBtn">🚪 Sign out</a>
       </div>
 
+      <!-- XP Bar -->
+      <div class="xp-bar-container">
+        <div class="xp-level-info">
+          <span class="xp-level-badge" id="levelBadge">Lv.1</span>
+          <span class="xp-label">XP: <strong id="xpDisplay">0</strong> / <strong id="xpNextDisplay">100</strong></span>
+        </div>
+        <div class="xp-bar-track">
+          <div class="xp-bar-fill" id="xpBarFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Streak -->
       <div class="streak">
-        Streak: <span id="streakCount">0</span> days 🔥
+        <div style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:4px;">Current streak</div>
+        <div style="font-size:1.6rem; font-weight:600; color:#d97706; margin-bottom:10px;"><span id="streakCount">0</span> days 🔥</div>
         <button id="checkInBtn">Tap to Check In Today</button>
-        <p id="checkInStatus"></p>
+        <p id="checkInStatus" style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);"></p>
       </div>
 
-      <div class="tabs">
+      <!-- Tabs -->
+      <div class="tabs" id="mainTabs">
         <button data-tab="taskFocus" class="active">To‑Do / Pomodoro</button>
         <button data-tab="activities">Activities</button>
         <button data-tab="budget">Budget</button>
+        <button data-tab="badges">Badges</button>
+        <button data-tab="habits" class="pro-tab" id="habitsTabBtn" style="display:none;">Habits</button>
+        <button data-tab="focusMode" class="pro-tab" id="focusTabBtn" style="display:none;">🎵 Focus</button>
+        <button data-tab="analytics" class="pro-tab" id="analyticsTabBtn" style="display:none;">📊 Analytics</button>
       </div>
 
+      <!-- ===== TO-DO / POMODORO TAB ===== -->
       <div id="taskFocus" class="tab-content active">
         <h2>To‑Do & Pomodoro</h2>
+
+        <div class="project-bar">
+          <label>Project</label>
+          <select id="projectSelect"></select>
+          <button id="addProjectBtn" class="btn-small">+ New</button>
+          <button id="deleteProjectBtn" class="btn-small btn-danger">🗑</button>
+        </div>
+        <div id="projectLimitNote" class="limit-note" style="display:none;">Free plan: max 3 projects</div>
+
         <div class="pomodoro-panel">
           <h3>Pomodoro Timer</h3>
           <div class="pomodoro-nav">
@@ -79,7 +145,7 @@
             <button data-pomodoro-mode="longBreak" class="pomodoro-nav-btn">Long Break (15)</button>
           </div>
           <div class="pomodoro-timer">25:00</div>
-          
+
           <div id="pomodoroScreen" class="pomodoro-screen active">
             <div class="break-section">
               <h4>Work Session</h4>
@@ -90,7 +156,6 @@
               </div>
             </div>
           </div>
-
           <div id="shortBreakScreen" class="pomodoro-screen">
             <div class="break-section">
               <h4>Short Break</h4>
@@ -101,7 +166,6 @@
               </div>
             </div>
           </div>
-
           <div id="longBreakScreen" class="pomodoro-screen">
             <div class="break-section">
               <h4>Long Break</h4>
@@ -116,100 +180,207 @@
 
         <div class="todo-panel">
           <h3>To‑Do List</h3>
-          <div style="display: flex;">
-            <input type="text" id="todoInput" placeholder="New task" />
+          <div class="daily-planner-bar">
+            <label>Plan for</label>
+            <input type="date" id="plannerDate" />
+          </div>
+          <div class="todo-input-row">
+            <input type="text" id="todoInput" placeholder="Add a new task…" />
             <button id="addTodo">Add</button>
           </div>
           <ul id="todoList"></ul>
         </div>
       </div>
 
+      <!-- ===== ACTIVITIES TAB ===== -->
       <div id="activities" class="tab-content">
-  <h2>Activity Tracker</h2>
-  <div class="chart-container" style="position: relative; height:40vh; width:100%">
-    <canvas id="activityChart"></canvas>
-  </div>
-  <div id="usageStats" style="text-align: center; margin-top: 15px; font-weight: bold;">
-    Today's Usage: <span id="minutesToday">0</span> minutes
-  </div>
-</div>
+        <h2>Activity Tracker</h2>
+        <div class="chart-container" style="position: relative; height:40vh; width:100%">
+          <canvas id="activityChart"></canvas>
+        </div>
+        <div id="usageStats" style="text-align: center; margin-top: 15px;">
+          Today's usage: <span id="minutesToday">0</span> minutes
+        </div>
+      </div>
 
-     <div id="budget" class="tab-content">
-  <h2>Budget Tracker</h2>
-  
-  <div class="budget-summary">
-    <div class="summary-card">
-      <span>Balance</span>
-      <h3 id="totalBalance">$0.00</h3>
-    </div>
-    <div class="summary-card income">
-      <span>Income</span>
-      <h3 id="totalIncome">+$0.00</h3>
-    </div>
-    <div class="summary-card expense">
-      <span>Expenses</span>
-      <h3 id="totalExpense">-$0.00</h3>
-    </div>
-  </div>
+      <!-- ===== BUDGET TAB ===== -->
+      <div id="budget" class="tab-content">
+        <h2>Budget Tracker</h2>
+        <div class="budget-summary">
+          <div class="summary-card"><span>Balance</span><h3 id="totalBalance">$0.00</h3></div>
+          <div class="summary-card income"><span>Income</span><h3 id="totalIncome">+$0.00</h3></div>
+          <div class="summary-card expense"><span>Expenses</span><h3 id="totalExpense">-$0.00</h3></div>
+        </div>
+        <div class="budget-form">
+          <h3>Add transaction</h3>
+          <input type="text" id="budgetDesc" placeholder="Description">
+          <input type="number" id="budgetAmount" placeholder="Amount (negative = expense)">
+          <button id="addTransaction" style="margin-top: 10px; width: 100%;">Add Transaction</button>
+        </div>
+        <div class="history-panel">
+          <h3 style="margin-bottom:10px; font-size:1rem; font-weight:500;">History</h3>
+          <ul id="transactionList" class="transaction-list"></ul>
+        </div>
+      </div>
 
-  <div class="budget-form">
-    <h3>Add New Transaction</h3>
-    <input type="text" id="budgetDesc" placeholder="Description">
-    <input type="number" id="budgetAmount" placeholder="Amount">
-    <small>Enter negative numbers for expenses</small>
-    <button id="addTransaction" style="margin-top: 10px; width: 100%;">Add Transaction</button>
-  </div>
+      <!-- ===== BADGES TAB ===== -->
+      <div id="badges" class="tab-content">
+        <h2>🏅 Badges & Achievements</h2>
+        <p class="badges-subtitle">Complete tasks and maintain streaks to earn badges!</p>
+        <div id="badgeGrid" class="badge-grid"></div>
+      </div>
 
-  <div class="history-panel">
-    <h3>History</h3>
-    <ul id="transactionList" class="transaction-list"></ul>
-  </div>
-</div>
+      <!-- ===== HABITS TAB (PRO) ===== -->
+      <div id="habits" class="tab-content">
+        <h2>🌱 Habit Tracker</h2>
+        <p class="badges-subtitle">Build lasting habits — check off each day to maintain your chain!</p>
+        <div class="habit-add-row">
+          <input type="text" id="habitInput" placeholder="New habit (e.g. Read 20 mins)" />
+          <button id="addHabitBtn">Add</button>
+        </div>
+        <div id="habitList" class="habit-list"></div>
+      </div>
+
+      <!-- ===== FOCUS / AMBIENT SOUNDS TAB (PRO) ===== -->
+      <div id="focusMode" class="tab-content">
+        <h2>🎵 Focus Mode</h2>
+        <p class="badges-subtitle">Pick an ambient sound, set a study timer, and enter deep work.</p>
+        <div class="focus-sounds-grid" id="focusSoundsGrid"></div>
+        <div class="focus-study-timer">
+          <h3 style="margin-bottom:6px; font-size:1rem; font-weight:500;">Study Mode Timer</h3>
+          <div class="focus-timer-display" id="focusTimerDisplay">00:00</div>
+          <div class="focus-timer-controls">
+            <select id="focusDurationSelect">
+              <option value="25">25 min</option>
+              <option value="45">45 min</option>
+              <option value="60">60 min</option>
+              <option value="90">90 min</option>
+            </select>
+            <button id="focusTimerStart">Start Session</button>
+            <button id="focusTimerStop" style="background:var(--surface-3); color:var(--text-secondary); border:1px solid var(--border-med);">Stop</button>
+          </div>
+          <p id="focusModeStatus" class="focus-mode-status"></p>
+        </div>
+      </div>
+
+      <!-- ===== ANALYTICS TAB (PRO) ===== -->
+      <div id="analytics" class="tab-content">
+        <h2>📊 Analytics Dashboard</h2>
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <div class="analytics-icon">✅</div>
+            <div class="analytics-value" id="analyticsTasksDone">0</div>
+            <div class="analytics-label">Tasks Done</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">🍅</div>
+            <div class="analytics-value" id="analyticsPomodoros">0</div>
+            <div class="analytics-label">Pomodoros</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">🔥</div>
+            <div class="analytics-value" id="analyticsStreak">0</div>
+            <div class="analytics-label">Day Streak</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">💎</div>
+            <div class="analytics-value" id="analyticsXP">0</div>
+            <div class="analytics-label">Total XP</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">🌱</div>
+            <div class="analytics-value" id="analyticsHabits">0</div>
+            <div class="analytics-label">Habits</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-icon">⏱️</div>
+            <div class="analytics-value" id="analyticsMinutes">0</div>
+            <div class="analytics-label">Minutes Today</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:22px; margin-bottom:10px; font-size:1rem; font-weight:500;">Weekly Task Completions</h3>
+        <div class="chart-container" style="position:relative; height:30vh; width:100%">
+          <canvas id="analyticsTaskChart"></canvas>
+        </div>
+
+        <h3 style="margin-top:22px; margin-bottom:10px; font-size:1rem; font-weight:500;">XP Progress</h3>
+        <div class="chart-container" style="position:relative; height:30vh; width:100%">
+          <canvas id="analyticsXPChart"></canvas>
+        </div>
+      </div>
+
     </section>
 
+    <!-- ===== LEADERBOARD PAGE ===== -->
+    <section id="leaderboardPage" class="page">
+      <div class="header"><h1>Minerva</h1><p>🏆 Leaderboard</p></div>
+      <div id="leaderboardList" class="leaderboard-list"></div>
+      <button onclick="showPage('dashboard')" style="margin-top:24px; width:100%;">← Back to Dashboard</button>
+    </section>
 
+    <!-- ===== PROFILE PAGE ===== -->
     <section id="profile" class="page">
-      <div class="header">
-        <h1>Minerva</h1>
-        <p>User Profile</p>
-      </div>
-      
+      <div class="header"><h1>Minerva</h1><p>Your Profile</p></div>
       <div class="profile-header">
         <img src="avatar-placeholder.jpg" alt="User Avatar" class="avatar" id="profile-avatar">
         <h3 id="profile-username">Muhammad</h3>
         <p id="profile-phone">+60 123 456 789</p>
         <p id="profile-email">muhammad@gmail.com</p>
+        <div id="profile-plan-badge" class="profile-plan-badge">Free Plan</div>
+        <div class="profile-xp-summary">
+          <span id="profile-level-badge" class="xp-level-badge">Lv.1</span>
+          <span id="profile-xp-text">0 XP total</span>
+        </div>
       </div>
-
       <div class="profile-options">
         <button id="dark-mode-toggle" class="profile-btn">Enable Dark Mode</button>
         <button id="profile-settings" class="profile-btn">Profile Settings</button>
-        <button onclick="showPage('dashboard')" class="profile-btn">Back to Dashboard</button>
-        <button id="logout" class="profile-btn">Logout</button>
+        <button id="upgradePlanBtn" class="profile-btn btn-upgrade" style="display:none;">⭐ Upgrade to Pro</button>
+        <button onclick="showPage('dashboard')" class="profile-btn" style="background:var(--surface-3); color:var(--text-primary); border:1px solid var(--border-med);">← Back to Dashboard</button>
+        <button id="logout" class="profile-btn" style="background:var(--surface-3); color:#ef4444; border:1px solid rgba(239,68,68,0.2);">Sign out</button>
       </div>
     </section>
 
+    <!-- ===== SETTINGS PAGE ===== -->
     <section id="settingsPage" class="page">
-      <div class="header">
-        <h1>Settings</h1>
-        <p>Update your profile information</p>
-      </div>
-  
+      <div class="header"><h1>Minerva</h1><p>Profile Settings</p></div>
       <form id="settingsForm">
         <label>Username</label>
-        <input type="text" id="editUsername" placeholder="Enter name">
-        
+        <input type="text" id="editUsername" placeholder="Your name">
         <label>Telephone</label>
-        <input type="tel" id="editPhone" placeholder="Enter phone number">
-        
+        <input type="tel" id="editPhone" placeholder="Phone number">
         <label>Email</label>
-        <input type="email" id="editEmail" placeholder="Enter email">
-        
+        <input type="email" id="editEmail" placeholder="Email address">
         <button type="submit">Save Changes</button>
-        <button type="button" onclick="showPage('profile')" style="background: #666; margin-top: 5px;">Cancel</button>
+        <button type="button" onclick="showPage('profile')" style="background:var(--surface-3); color:var(--text-primary); border:1px solid var(--border-med);">Cancel</button>
       </form>
     </section>
 
-  </div> <script src="script.js"></script>
+  </div>
+
+  <!-- XP TOAST -->
+  <div id="xpToast" class="xp-toast"></div>
+
+  <!-- UPGRADE MODAL -->
+  <div id="upgradeModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h2>⭐ Upgrade to Student Pro</h2>
+      <p>Unlock the full Minerva experience</p>
+      <ul class="modal-feature-list">
+        <li>✅ Unlimited projects</li>
+        <li>🌱 Habit tracker with streak chains</li>
+        <li>🎵 Focus sounds & study mode</li>
+        <li>📊 Full analytics dashboard</li>
+        <li>🔥 Streak & reward system</li>
+      </ul>
+      <div class="modal-btns">
+        <button id="modalUpgradeBtn">Upgrade Now (Demo)</button>
+        <button id="modalCloseBtn" style="background:var(--surface-3); color:var(--text-secondary); border:1px solid var(--border-med);">Maybe Later</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
