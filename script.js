@@ -1,29 +1,202 @@
 // =========================================
+// 0. FIREBASE INITIALIZATION
+// =========================================
+// TODO: Replace with your Firebase project config from Firebase Console > Project Settings > Web App
+const firebaseConfig = {
+  apiKey: "AIzaSyAb8bnSBJf2GWr--MyCyjyEFrHXT1CRD4k",
+  authDomain: "minerva-b0f7a.firebaseapp.com",
+  projectId: "minerva-b0f7a",
+  storageBucket: "minerva-b0f7a.firebasestorage.app",
+  messagingSenderId: "1041398854247",
+  appId: "1:1041398854247:web:381f9090c7e27af4eb9ac2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+
+// =========================================
+// 0b. FIRESTORE SYNC HELPERS
+// =========================================
+let firestoreReady = false; // tracks whether we've confirmed a successful write
+
+function getUserDocRef() {
+  const user = auth.currentUser;
+  if (!user) return null;
+  return db.collection("users").doc(user.uid);
+}
+
+// Save a field (or merge object) into the user's Firestore document
+function saveFieldToCloud(data) {
+  const ref = getUserDocRef();
+  if (!ref) return Promise.resolve();
+  return ref.set(data, { merge: true })
+    .then(() => { firestoreReady = true; })
+    .catch(err => console.error("Firestore save error:", err.code, err.message));
+}
+
+// Save a todo list to a subcollection document
+function saveTodosToCloud(key, tasks) {
+  const ref = getUserDocRef();
+  if (!ref) return Promise.resolve();
+  const safeKey = encodeURIComponent(key);
+  return ref.collection("todos").doc(safeKey).set({ tasks })
+    .catch(err => console.error("Firestore todos save error:", err.code, err.message));
+}
+
+// Load all user data from Firestore into localStorage on login
+async function loadAllFromCloud(uid, email) {
+  try {
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists) return false; // signal: no doc found
+    const data = userDoc.data();
+
+    // Restore profile into localStorage cache
+    if (data.xp !== undefined) localStorage.setItem(`xp_${email}`, data.xp);
+    if (data.streak !== undefined) localStorage.setItem(`streak_${email}`, data.streak);
+    if (data.lastCheckIn) localStorage.setItem(`lastCheck_${email}`, data.lastCheckIn);
+    if (data.badges) localStorage.setItem(`badges_${email}`, JSON.stringify(data.badges));
+    if (data.projects) localStorage.setItem(`projects_${email}`, JSON.stringify(data.projects));
+    if (data.transactions) localStorage.setItem(`budget_${email}`, JSON.stringify(data.transactions));
+    if (data.habits) localStorage.setItem(`habits_${email}`, JSON.stringify(data.habits));
+    if (data.usage) localStorage.setItem(`usage_${email}`, JSON.stringify(data.usage));
+    if (data.taskLog) localStorage.setItem(`tasklog_${email}`, JSON.stringify(data.taskLog));
+    if (data.xpLog) localStorage.setItem(`xplog_${email}`, JSON.stringify(data.xpLog));
+    if (data.pomodoroSessions !== undefined) pomodoroSessionsCompleted = data.pomodoroSessions;
+    if (data.theme) {
+      localStorage.setItem("theme", data.theme);
+      if (data.theme === "dark") {
+        document.body.classList.add("dark-mode");
+        document.getElementById("dark-mode-toggle").textContent = "Disable Dark Mode";
+      }
+    }
+
+    // Restore userdata cache (profile info used for currentUser)
+    const userProfile = {
+      email: data.email || email,
+      username: data.username || email.split("@")[0],
+      phone: data.phone || "",
+      plan: data.plan || "free"
+    };
+    localStorage.setItem(`userdata_${email}`, JSON.stringify(userProfile));
+    localStorage.setItem("currentUser", JSON.stringify(userProfile));
+
+    // Restore todos from subcollection
+    const todosSnap = await db.collection("users").doc(uid).collection("todos").get();
+    todosSnap.forEach(doc => {
+      const decodedKey = decodeURIComponent(doc.id);
+      const docData = doc.data();
+      if (docData.tasks) {
+        localStorage.setItem(decodedKey, JSON.stringify(docData.tasks));
+      }
+    });
+
+    // Restore leaderboard entry
+    if (data.xp !== undefined) localStorage.setItem(`lb_xp_${email}`, data.xp);
+
+    // Restore avatar
+    if (data.avatarUrl) localStorage.setItem(`avatar_${email}`, data.avatarUrl);
+
+    firestoreReady = true;
+    return true; // signal: doc found and loaded
+  } catch (err) {
+    console.error("Error loading from Firestore:", err.code, err.message);
+    return false;
+  }
+}
+
+// Build the full data object from localStorage for saving to Firestore
+function buildCloudData() {
+  if (!currentUser) return null;
+  const email = currentUser.email;
+  return {
+    email: currentUser.email,
+    username: currentUser.username || email.split("@")[0],
+    phone: currentUser.phone || "",
+    plan: currentUser.plan || "free",
+    xp: parseInt(localStorage.getItem(`xp_${email}`) || "0"),
+    streak: parseInt(localStorage.getItem(`streak_${email}`) || "0"),
+    lastCheckIn: localStorage.getItem(`lastCheck_${email}`) || "",
+    badges: JSON.parse(localStorage.getItem(`badges_${email}`) || "[]"),
+    projects: JSON.parse(localStorage.getItem(`projects_${email}`) || '["Default"]'),
+    transactions: JSON.parse(localStorage.getItem(`budget_${email}`) || "[]"),
+    habits: JSON.parse(localStorage.getItem(`habits_${email}`) || "[]"),
+    usage: JSON.parse(localStorage.getItem(`usage_${email}`) || "{}"),
+    taskLog: JSON.parse(localStorage.getItem(`tasklog_${email}`) || "{}"),
+    xpLog: JSON.parse(localStorage.getItem(`xplog_${email}`) || "{}"),
+    pomodoroSessions: pomodoroSessionsCompleted,
+    avatarUrl: localStorage.getItem(`avatar_${email}`) || "",
+    theme: localStorage.getItem("theme") || "light",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+
+// Save all current user data to Firestore (full sync) — returns a Promise
+function syncAllToCloud() {
+  if (!currentUser || !auth.currentUser) return Promise.resolve();
+  const data = buildCloudData();
+  if (!data) return Promise.resolve();
+
+  const userSave = saveFieldToCloud(data);
+
+  const leaderboardSave = db.collection("leaderboard").doc(auth.currentUser.uid).set({
+    email: data.email,
+    username: data.username,
+    plan: data.plan,
+    xp: data.xp,
+    level: getLevelFromXP(data.xp)
+  }, { merge: true }).catch(err => console.error("Leaderboard sync error:", err.code, err.message));
+
+  return Promise.all([userSave, leaderboardSave]);
+}
+
+// Ensure user doc exists in Firestore — creates it if missing
+async function ensureUserDocInCloud(uid, email) {
+  try {
+    const docRef = db.collection("users").doc(uid);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      // No doc in Firestore — create one from current state
+      const data = buildCloudData() || {
+        email,
+        username: email.split("@")[0],
+        phone: "",
+        plan: "free",
+        xp: 0, streak: 0, lastCheckIn: "",
+        badges: [], projects: ["Default"], transactions: [], habits: [],
+        usage: {}, taskLog: {}, xpLog: {},
+        pomodoroSessions: 0, theme: "light",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await docRef.set(data);
+      console.log("Created missing user doc in Firestore");
+    }
+    firestoreReady = true;
+  } catch (err) {
+    console.error("ensureUserDocInCloud error:", err.code, err.message);
+  }
+}
+
+
+// =========================================
 // 1. GLOBAL STATE & INITIALIZATION
 // =========================================
 let currentUser = null;
 let isLoggedIn = false;
-let userPlan = "free"; // "free" | "pro"
+let userPlan = "free";
 
 document.addEventListener("DOMContentLoaded", () => {
   showPage("loginPage");
-
-  const savedUser = localStorage.getItem("currentUser");
-  if (savedUser) {
-    currentUser = JSON.parse(savedUser);
-    isLoggedIn = true;
-    userPlan = currentUser.plan || "free";
-  }
 
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-mode");
     document.getElementById("dark-mode-toggle").textContent = "Disable Dark Mode";
   }
 
-  // Set today's date in planner
   document.getElementById("plannerDate").value = new Date().toISOString().split("T")[0];
 
-  // Plan card radio UI
   document.querySelectorAll('input[name="plan"]').forEach(radio => {
     radio.addEventListener("change", () => {
       document.querySelectorAll(".plan-card").forEach(c => c.classList.remove("selected"));
@@ -32,6 +205,40 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   initFocusSounds();
+
+  // Firebase Auth state listener — handles page refreshes & persisted sessions
+  auth.onAuthStateChanged(async (user) => {
+    if (user && !isLoggedIn) {
+      const email = user.email;
+
+      // Load all data from Firestore into localStorage
+      const loaded = await loadAllFromCloud(user.uid, email);
+
+      // If no Firestore doc existed, create one now
+      if (!loaded) {
+        await ensureUserDocInCloud(user.uid, email);
+      }
+
+      // Reconstruct currentUser from localStorage (populated by loadAllFromCloud)
+      const saved = localStorage.getItem(`userdata_${email}`);
+      if (saved) {
+        currentUser = JSON.parse(saved);
+      } else {
+        currentUser = { email, username: email.split("@")[0], plan: "free" };
+        localStorage.setItem(`userdata_${email}`, JSON.stringify(currentUser));
+      }
+      userPlan = currentUser.plan || "free";
+      isLoggedIn = true;
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+      sessionStartTime = Date.now();
+      showPage("dashboard");
+    } else if (!user) {
+      // User signed out or no session — show login page
+      isLoggedIn = false;
+      currentUser = null;
+      userPlan = "free";
+    }
+  });
 });
 
 
@@ -92,9 +299,13 @@ document.addEventListener("click", (e) => {
     if (e.target.id === "upgradePlanBtn") {
       document.getElementById("upgradeModal").style.display = "flex";
     } else {
-      // Actually upgrade
       userPlan = "pro";
-      if (currentUser) { currentUser.plan = "pro"; localStorage.setItem("currentUser", JSON.stringify(currentUser)); }
+      if (currentUser) {
+        currentUser.plan = "pro";
+        localStorage.setItem("currentUser", JSON.stringify(currentUser));
+        localStorage.setItem(`userdata_${currentUser.email}`, JSON.stringify(currentUser));
+        saveFieldToCloud({ plan: "pro" });
+      }
       document.getElementById("upgradeModal").style.display = "none";
       applyPlanUI();
       applyProfilePlanUI();
@@ -108,7 +319,7 @@ document.addEventListener("click", (e) => {
 
 
 // =========================================
-// 4. AUTHENTICATION  ← FIXED
+// 4. AUTHENTICATION (Firebase Auth)
 // =========================================
 document.getElementById("goToSignup").addEventListener("click", (e) => {
   e.preventDefault();
@@ -121,7 +332,6 @@ document.getElementById("goToLogin").addEventListener("click", (e) => {
   showPage("loginPage");
 });
 
-// --- Helper: show inline error messages ---
 function showAuthError(elementId, message) {
   let el = document.getElementById(elementId);
   if (!el) {
@@ -140,99 +350,176 @@ function clearAuthErrors() {
   });
 }
 
+// Friendly error messages from Firebase error codes
+function getAuthErrorMessage(errorCode) {
+  switch (errorCode) {
+    case "auth/user-not-found": return "No account found with this email. Please sign up first.";
+    case "auth/wrong-password": return "Incorrect password. Please try again.";
+    case "auth/invalid-credential": return "Invalid email or password. Please try again.";
+    case "auth/email-already-in-use": return "An account with this email already exists. Please log in.";
+    case "auth/weak-password": return "Password must be at least 6 characters.";
+    case "auth/invalid-email": return "Please enter a valid email address.";
+    case "auth/too-many-requests": return "Too many attempts. Please wait a moment and try again.";
+    case "auth/network-request-failed": return "Network error. Check your internet connection.";
+    case "auth/operation-not-allowed": return "Email/password sign-in is not enabled. Enable it in Firebase Console > Authentication > Sign-in method.";
+    case "auth/api-key-not-valid.-please-pass-a-valid-api-key.": return "Invalid Firebase API key. Check your firebaseConfig.";
+    default: return `Error: ${errorCode || "Unknown error"}. Check browser console for details.`;
+  }
+}
+
 // --- LOGIN ---
-document.getElementById("loginForm").addEventListener("submit", (e) => {
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const email    = document.getElementById("loginEmail").value.trim().toLowerCase();
+  const email = document.getElementById("loginEmail").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
 
-  // Remove any previous error
   const prevErr = document.getElementById("loginError");
   if (prevErr) prevErr.remove();
 
-  // Check account exists
-  const saved = localStorage.getItem(`userdata_${email}`);
-  if (!saved) {
-    const err = showAuthError("loginError", "No account found with this email. Please sign up first.");
-    document.getElementById("loginForm").appendChild(err);
-    return;
+  // Disable button while logging in
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Signing in...";
+
+  try {
+    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+
+    // Load data from Firestore into localStorage
+    const loaded = await loadAllFromCloud(user.uid, email);
+
+    // If no Firestore doc existed (e.g. signup write failed), create one now
+    if (!loaded) {
+      await ensureUserDocInCloud(user.uid, email);
+    }
+
+    // Reconstruct currentUser from localStorage (populated by loadAllFromCloud)
+    const saved = localStorage.getItem(`userdata_${email}`);
+    if (saved) {
+      currentUser = JSON.parse(saved);
+    } else {
+      currentUser = { email, username: email.split("@")[0], plan: "free" };
+      localStorage.setItem(`userdata_${email}`, JSON.stringify(currentUser));
+    }
+
+    userPlan = currentUser.plan || "free";
+    isLoggedIn = true;
+
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("lastUserEmail", email);
+
+    registerUserInLeaderboard(email);
+    sessionStartTime = Date.now();
+    showPage("dashboard");
+  } catch (error) {
+    console.error("Login error:", error.code, error.message);
+    const errEl = showAuthError("loginError", getAuthErrorMessage(error.code));
+    document.getElementById("loginForm").appendChild(errEl);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Sign in";
   }
-
-  const userData = JSON.parse(saved);
-
-  // Check password (only enforce if one was saved)
-  if (userData.password && userData.password !== password) {
-    const err = showAuthError("loginError", "Incorrect password. Please try again.");
-    document.getElementById("loginForm").appendChild(err);
-    return;
-  }
-
-  // Success — log in
-  currentUser = userData;
-  userPlan    = currentUser.plan || "free";
-  isLoggedIn  = true;
-
-  localStorage.setItem("currentUser", JSON.stringify(currentUser));
-  localStorage.setItem("isLoggedIn", "true");
-  localStorage.setItem("lastUserEmail", email);
-
-  registerUserInLeaderboard(email);
-  sessionStartTime = Date.now();
-  showPage("dashboard");
 });
 
 // --- SIGNUP ---
-document.getElementById("signupForm").addEventListener("submit", (e) => {
+document.getElementById("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const email        = document.getElementById("signupEmail").value.trim().toLowerCase();
-  const password     = document.getElementById("signupPassword").value;
+  const email = document.getElementById("signupEmail").value.trim().toLowerCase();
+  const password = document.getElementById("signupPassword").value;
   const selectedPlan = document.querySelector('input[name="plan"]:checked')?.value || "free";
 
-  // Remove any previous error
   const prevErr = document.getElementById("signupError");
   if (prevErr) prevErr.remove();
 
-  // Validate password length
   if (password.length < 6) {
     const err = showAuthError("signupError", "Password must be at least 6 characters.");
     document.getElementById("signupForm").appendChild(err);
     return;
   }
 
-  // Check if account already exists
-  if (localStorage.getItem(`userdata_${email}`)) {
-    const err = showAuthError("signupError", "An account with this email already exists. Please log in.");
-    document.getElementById("signupForm").appendChild(err);
-    return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Creating account...";
+
+  try {
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+
+    // Save initial user profile to Firestore (non-blocking — don't let this fail signup)
+    const newUserData = {
+      email,
+      username: email.split("@")[0],
+      phone: "",
+      plan: selectedPlan,
+      xp: 0,
+      streak: 0,
+      lastCheckIn: "",
+      badges: [],
+      projects: ["Default"],
+      transactions: [],
+      habits: [],
+      usage: {},
+      taskLog: {},
+      xpLog: {},
+      pomodoroSessions: 0,
+      theme: "light",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    try {
+      await db.collection("users").doc(user.uid).set(newUserData);
+    } catch (firestoreErr) {
+      console.warn("Firestore profile save failed (will retry on login):", firestoreErr);
+    }
+
+    // Also save locally
+    const localUser = { email, username: email.split("@")[0], plan: selectedPlan };
+    localStorage.setItem(`userdata_${email}`, JSON.stringify(localUser));
+
+    // Sign out so user goes through login flow
+    await auth.signOut();
+
+    alert(`Account created with ${selectedPlan === "pro" ? "Student Pro ⭐" : "Free"} plan! Please log in.`);
+    clearAuthErrors();
+    showPage("loginPage");
+  } catch (error) {
+    console.error("Signup error:", error.code, error.message);
+    const errEl = showAuthError("signupError", getAuthErrorMessage(error.code));
+    document.getElementById("signupForm").appendChild(errEl);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Create account";
   }
-
-  // Save new user WITH password
-  const newUser = {
-    email,
-    password,
-    plan: selectedPlan,
-    username: email.split("@")[0]
-  };
-  localStorage.setItem(`userdata_${email}`, JSON.stringify(newUser));
-
-  alert(`Account created with ${selectedPlan === "pro" ? "Student Pro ⭐" : "Free"} plan! Please log in.`);
-  clearAuthErrors();
-  showPage("loginPage");
 });
 
 // --- LOGOUT ---
 ["logoutBtn", "logout"].forEach(id => {
   const btn = document.getElementById(id);
   if (btn) {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       e.preventDefault();
-      if (currentUser) localStorage.setItem(`userdata_${currentUser.email}`, JSON.stringify(currentUser));
+
+      // Sync ALL data to Firestore before signing out — await it
+      try {
+        await syncAllToCloud();
+      } catch (err) {
+        console.error("Pre-logout sync error:", err);
+      }
+
+      try {
+        await auth.signOut();
+      } catch (err) {
+        console.error("Sign out error:", err);
+      }
+
       localStorage.removeItem("isLoggedIn");
-      isLoggedIn   = false;
-      currentUser  = null;
-      userPlan     = "free";
+      isLoggedIn = false;
+      currentUser = null;
+      userPlan = "free";
+      firestoreReady = false;
       clearAuthErrors();
       showPage("loginPage");
     });
@@ -259,7 +546,6 @@ document.addEventListener("click", (e) => {
 
 document.querySelectorAll(".tabs button").forEach(btn => {
   btn.addEventListener("click", () => {
-    // Check if Pro-gated tab
     if (btn.classList.contains("pro-tab") && !isPro()) {
       document.getElementById("upgradeModal").style.display = "flex";
       return;
@@ -286,7 +572,10 @@ document.querySelectorAll(".tabs button").forEach(btn => {
 // =========================================
 function getProjectsKey() { return `projects_${currentUser?.email}`; }
 function getProjects() { return JSON.parse(localStorage.getItem(getProjectsKey())) || ["Default"]; }
-function saveProjects(arr) { localStorage.setItem(getProjectsKey(), JSON.stringify(arr)); }
+function saveProjects(arr) {
+  localStorage.setItem(getProjectsKey(), JSON.stringify(arr));
+  saveFieldToCloud({ projects: arr });
+}
 
 function getCurrentProject() {
   const sel = document.getElementById("projectSelect");
@@ -366,6 +655,7 @@ document.getElementById("checkInBtn").addEventListener("click", () => {
   streak++;
   localStorage.setItem(streakKey, streak);
   localStorage.setItem(lastCheckKey, today);
+  saveFieldToCloud({ streak, lastCheckIn: today });
   awardXP(10, "Daily Check-in");
   checkStreakBadges(streak);
   loadUserStreak();
@@ -408,9 +698,11 @@ document.getElementById("addTodo").addEventListener("click", () => {
   const input = document.getElementById("todoInput");
   const text = input.value.trim();
   if (text) {
-    const todos = JSON.parse(localStorage.getItem(getTodosKey())) || [];
+    const key = getTodosKey();
+    const todos = JSON.parse(localStorage.getItem(key)) || [];
     todos.push({ text, done: false });
-    localStorage.setItem(getTodosKey(), JSON.stringify(todos));
+    localStorage.setItem(key, JSON.stringify(todos));
+    saveTodosToCloud(key, todos);
     input.value = "";
     loadTodos();
   }
@@ -421,10 +713,12 @@ document.getElementById("todoInput").addEventListener("keypress", (e) => {
 });
 
 function completeTodo(index) {
-  const todos = JSON.parse(localStorage.getItem(getTodosKey())) || [];
+  const key = getTodosKey();
+  const todos = JSON.parse(localStorage.getItem(key)) || [];
   if (!todos[index].done) {
     todos[index].done = true;
-    localStorage.setItem(getTodosKey(), JSON.stringify(todos));
+    localStorage.setItem(key, JSON.stringify(todos));
+    saveTodosToCloud(key, todos);
     awardXP(20, "Task Completed");
     const doneTasks = todos.filter(t => t.done).length;
     checkTaskBadges(doneTasks);
@@ -434,9 +728,11 @@ function completeTodo(index) {
 }
 
 function deleteTodo(index) {
-  const todos = JSON.parse(localStorage.getItem(getTodosKey())) || [];
+  const key = getTodosKey();
+  const todos = JSON.parse(localStorage.getItem(key)) || [];
   todos.splice(index, 1);
-  localStorage.setItem(getTodosKey(), JSON.stringify(todos));
+  localStorage.setItem(key, JSON.stringify(todos));
+  saveTodosToCloud(key, todos);
   loadTodos();
 }
 
@@ -446,6 +742,7 @@ function logDailyTaskCompletion() {
   let taskLog = JSON.parse(localStorage.getItem(`tasklog_${currentUser.email}`)) || {};
   taskLog[today] = (taskLog[today] || 0) + 1;
   localStorage.setItem(`tasklog_${currentUser.email}`, JSON.stringify(taskLog));
+  saveFieldToCloud({ taskLog });
 }
 
 
@@ -495,6 +792,7 @@ document.addEventListener("click", (e) => {
           pomodoroSessionsCompleted++;
           awardXP(30, "Pomodoro Session Done 🍅");
           checkPomodoroBadges(pomodoroSessionsCompleted);
+          saveFieldToCloud({ pomodoroSessions: pomodoroSessionsCompleted });
         }
         alert("Time is up!");
       }
@@ -525,11 +823,12 @@ document.getElementById("dark-mode-toggle").addEventListener("click", () => {
   const isDark = document.body.classList.contains("dark-mode");
   document.getElementById("dark-mode-toggle").textContent = isDark ? "Disable Dark Mode" : "Enable Dark Mode";
   localStorage.setItem("theme", isDark ? "dark" : "light");
+  saveFieldToCloud({ theme: isDark ? "dark" : "light" });
 });
 
 
 // =========================================
-// 11. PROFILE SETTINGS
+// 11. PROFILE SETTINGS & AVATAR
 // =========================================
 document.getElementById("profile-settings").addEventListener("click", () => {
   document.getElementById("editUsername").value = document.getElementById("profile-username").textContent;
@@ -553,6 +852,8 @@ document.getElementById("settingsForm").addEventListener("submit", (e) => {
     currentUser.phone = newPhone;
     currentUser.email = newEmail;
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    localStorage.setItem(`userdata_${currentUser.email}`, JSON.stringify(currentUser));
+    saveFieldToCloud({ username: newName, phone: newPhone });
   }
   alert("Profile updated successfully!");
   showPage("profile");
@@ -565,6 +866,54 @@ function syncProfileUI() {
     if (user.phone) document.getElementById("profile-phone").textContent = user.phone;
     if (user.email) document.getElementById("profile-email").textContent = user.email;
   }
+  // Restore avatar
+  loadAvatar();
+}
+
+// --- Profile Picture ---
+const DEFAULT_AVATAR = "Default_pfp.avif";
+
+document.getElementById("avatarWrapper").addEventListener("click", () => {
+  document.getElementById("avatarInput").click();
+});
+
+document.getElementById("avatarInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Validate: images only, max 2MB
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file.");
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert("Image is too large. Please choose an image under 2MB.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    document.getElementById("profile-avatar").src = dataUrl;
+
+    // Save to localStorage (keyed per user)
+    if (currentUser) {
+      localStorage.setItem(`avatar_${currentUser.email}`, dataUrl);
+      // Save to Firestore (base64 data URL — works for small images)
+      saveFieldToCloud({ avatarUrl: dataUrl });
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+function loadAvatar() {
+  const avatarEl = document.getElementById("profile-avatar");
+  if (!currentUser) {
+    avatarEl.src = DEFAULT_AVATAR;
+    return;
+  }
+  const saved = localStorage.getItem(`avatar_${currentUser.email}`);
+  avatarEl.src = saved || DEFAULT_AVATAR;
 }
 
 
@@ -604,6 +953,7 @@ document.getElementById("addTransaction").addEventListener("click", () => {
   const transactions = JSON.parse(localStorage.getItem(`budget_${currentUser?.email}`)) || [];
   transactions.push({ desc, amount: parseFloat(amount) });
   localStorage.setItem(`budget_${currentUser?.email}`, JSON.stringify(transactions));
+  saveFieldToCloud({ transactions });
   document.getElementById("budgetDesc").value = "";
   document.getElementById("budgetAmount").value = "";
   updateBudgetUI();
@@ -613,6 +963,7 @@ function deleteTransaction(index) {
   const transactions = JSON.parse(localStorage.getItem(`budget_${currentUser?.email}`)) || [];
   transactions.splice(index, 1);
   localStorage.setItem(`budget_${currentUser?.email}`, JSON.stringify(transactions));
+  saveFieldToCloud({ transactions });
   updateBudgetUI();
 }
 
@@ -632,6 +983,7 @@ function updateUsageData() {
     let usage = JSON.parse(localStorage.getItem(`usage_${currentUser.email}`)) || {};
     usage[today] = (usage[today] || 0) + minutes;
     localStorage.setItem(`usage_${currentUser.email}`, JSON.stringify(usage));
+    saveFieldToCloud({ usage });
     sessionStartTime = now;
   }
 }
@@ -697,6 +1049,7 @@ function awardXP(amount, reason) {
   const oldLevel = getLevelFromXP(xp);
   xp += amount;
   localStorage.setItem(getXPKey(), xp);
+  saveFieldToCloud({ xp });
   const newLevel = getLevelFromXP(xp);
   showXPToast(`+${amount} XP — ${reason}`);
   if (newLevel > oldLevel) setTimeout(() => showXPToast(`🎉 Level Up! You are now Level ${newLevel}!`, true), 1200);
@@ -711,6 +1064,7 @@ function logDailyXP(amount) {
   let xpLog = JSON.parse(localStorage.getItem(`xplog_${currentUser.email}`)) || {};
   xpLog[today] = (xpLog[today] || 0) + amount;
   localStorage.setItem(`xplog_${currentUser.email}`, JSON.stringify(xpLog));
+  saveFieldToCloud({ xpLog });
 }
 
 function updateXPBar() {
@@ -765,6 +1119,7 @@ function awardBadge(badgeId) {
   if (earned.includes(badgeId)) return;
   earned.push(badgeId);
   localStorage.setItem(`badges_${currentUser?.email}`, JSON.stringify(earned));
+  saveFieldToCloud({ badges: earned });
   const badge = ALL_BADGES.find(b => b.id === badgeId);
   if (badge) setTimeout(() => showXPToast(`${badge.icon} Badge Unlocked: ${badge.name}!`, true), 2000);
 }
@@ -828,22 +1183,63 @@ function renderBadges() {
 
 
 // =========================================
-// 16. LEADERBOARD
+// 16. LEADERBOARD (Firestore-powered)
 // =========================================
 function registerUserInLeaderboard(email) {
+  // Also register in localStorage for backwards compat
   let users = JSON.parse(localStorage.getItem("leaderboard_users")) || [];
   if (!users.includes(email)) { users.push(email); localStorage.setItem("leaderboard_users", JSON.stringify(users)); }
 }
 
 function updateLeaderboardScore() {
   if (!currentUser) return;
-  localStorage.setItem(`lb_xp_${currentUser.email}`, getTotalXP());
+  const xp = getTotalXP();
+  localStorage.setItem(`lb_xp_${currentUser.email}`, xp);
+
+  // Update Firestore leaderboard
+  if (auth.currentUser) {
+    db.collection("leaderboard").doc(auth.currentUser.uid).set({
+      email: currentUser.email,
+      username: currentUser.username || currentUser.email.split("@")[0],
+      plan: currentUser.plan || "free",
+      xp: xp,
+      level: getLevelFromXP(xp)
+    }, { merge: true }).catch(err => console.error("Leaderboard update error:", err));
+  }
 }
 
-function renderLeaderboard() {
-  const users = JSON.parse(localStorage.getItem("leaderboard_users")) || [];
+async function renderLeaderboard() {
   const container = document.getElementById("leaderboardList");
-  container.innerHTML = "";
+  container.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>Loading...</p>";
+
+  try {
+    // Try loading from Firestore first for cross-user leaderboard
+    const snapshot = await db.collection("leaderboard").orderBy("xp", "desc").limit(50).get();
+
+    if (!snapshot.empty) {
+      container.innerHTML = "";
+      const medals = ["🥇", "🥈", "🥉"];
+      snapshot.docs.forEach((doc, i) => {
+        const entry = doc.data();
+        const isYou = currentUser && entry.email === currentUser.email;
+        const div = document.createElement("div");
+        div.className = `leaderboard-entry ${isYou ? "you" : ""}`;
+        div.innerHTML = `
+          <span class="lb-rank">${medals[i] || `#${i + 1}`}</span>
+          <span class="lb-name">${entry.username || entry.email.split("@")[0]}${isYou ? " (You)" : ""}${entry.plan === "pro" ? ' <span class="lb-pro-badge">PRO</span>' : ''}</span>
+          <span class="lb-level">Lv.${entry.level || getLevelFromXP(entry.xp)}</span>
+          <span class="lb-xp">${entry.xp || 0} XP</span>
+        `;
+        container.appendChild(div);
+      });
+      return;
+    }
+  } catch (err) {
+    console.error("Firestore leaderboard error, falling back to localStorage:", err);
+  }
+
+  // Fallback to localStorage leaderboard
+  const users = JSON.parse(localStorage.getItem("leaderboard_users")) || [];
 
   const entries = users.map(email => {
     const xp = parseInt(localStorage.getItem(`lb_xp_${email}`) || "0");
@@ -853,6 +1249,8 @@ function renderLeaderboard() {
     const plan = userData.plan || "free";
     return { email, xp, level, name, plan };
   }).sort((a, b) => b.xp - a.xp);
+
+  container.innerHTML = "";
 
   if (entries.length === 0) {
     container.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;">No users yet. Log in to appear here!</p>`;
@@ -880,7 +1278,10 @@ function renderLeaderboard() {
 // =========================================
 function getHabitsKey() { return `habits_${currentUser?.email}`; }
 function getHabits() { return JSON.parse(localStorage.getItem(getHabitsKey())) || []; }
-function saveHabits(habits) { localStorage.setItem(getHabitsKey(), JSON.stringify(habits)); }
+function saveHabits(habits) {
+  localStorage.setItem(getHabitsKey(), JSON.stringify(habits));
+  saveFieldToCloud({ habits });
+}
 
 document.getElementById("addHabitBtn").addEventListener("click", () => {
   const input = document.getElementById("habitInput");
@@ -980,12 +1381,12 @@ function calcHabitStreak(log) {
 // 18. FOCUS / AMBIENT SOUNDS (PRO)
 // =========================================
 const FOCUS_SOUNDS = [
-  { id: "rain", label: "Rain", emoji: "🌧️", url: "https://www.soundjay.com/misc/sounds/rain-01.mp3" },
-  { id: "forest", label: "Forest", emoji: "🌲", url: "https://www.soundjay.com/misc/sounds/crickets-01.mp3" },
-  { id: "cafe", label: "Café", emoji: "☕", url: "https://www.soundjay.com/misc/sounds/crowd-01.mp3" },
-  { id: "ocean", label: "Ocean", emoji: "🌊", url: "https://www.soundjay.com/misc/sounds/ocean-wave-2.mp3" },
-  { id: "whitenoise", label: "White Noise", emoji: "📻", url: null },
-  { id: "lofi", label: "Lo-Fi Vibes", emoji: "🎵", url: null },
+  { id: "rain", label: "Rain", emoji: "🌧️", url: "sounds/4 Minute timer with rain sounds.mp3" },
+  { id: "forest", label: "Forest", emoji: "🌲", url: "sounds/5 minutes of calming nature sounds (forest).mp3" },
+  { id: "cafe", label: "Cafe", emoji: "☕", url: "sounds/5 Minute Countdown Timer  - Cozy Coffee Shop With Fireplace & Music (Jazz).mp3" },
+  { id: "ocean", label: "Ocean", emoji: "🌊", url: "sounds/5 Minute Timer - Relaxing Music with Ocean Waves.mp3" },
+  { id: "whitenoise", label: "White Noise", emoji: "📻", url: "sounds/5 MIN WHITE NOISE BRAIN BREAK  Short relaxing sound for baby, sleep, adhd, stress relief, focus.mp3" },
+  { id: "lofi", label: "Lo-Fi Vibes", emoji: "🎵", url: "sounds/5 minute lofi Timer  Can a Cute Cat Help You Focus While Studying_.mp3" },
 ];
 
 let activeAudio = null;
@@ -1129,3 +1530,29 @@ function renderAnalytics() {
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: isDark ? "#aaa" : "#666" } }, x: { ticks: { color: isDark ? "#aaa" : "#666" } } }, plugins: { legend: { display: false } } }
   });
 }
+
+
+// =========================================
+// 20. PERIODIC CLOUD SYNC
+// =========================================
+// Auto-sync to Firestore every 60 seconds while logged in
+setInterval(() => {
+  if (isLoggedIn && currentUser && auth.currentUser) {
+    syncAllToCloud();
+  }
+}, 60000);
+
+// Sync before the user leaves the page using sendBeacon as fallback
+window.addEventListener("beforeunload", () => {
+  if (isLoggedIn && currentUser && auth.currentUser) {
+    // Fire-and-hope — beforeunload can't await, but at least try
+    syncAllToCloud();
+  }
+});
+
+// Also sync when the page becomes hidden (tab switch, minimize) — more reliable than beforeunload
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && isLoggedIn && currentUser && auth.currentUser) {
+    syncAllToCloud();
+  }
+});
