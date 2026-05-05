@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "minerva-b0f7a"
-  }
+    "default": "fsktm-29ed3"
+  },
+  "targets": {},
+  "etags": {}
 }

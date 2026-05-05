@@ -11,7 +11,11 @@ const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 
 // ── 1. CREATE CHECKOUT SESSION ──────────────────────────────────────────
 exports.createCheckoutSession = onRequest(
-  { secrets: [STRIPE_SECRET_KEY], cors: true },
+  {
+    secrets: [STRIPE_SECRET_KEY],
+    cors: ["https://fsktm-29ed3.web.app", "http://localhost:5000"],
+    invoker: "public"
+  },
   async (req, res) => {
     if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
@@ -29,7 +33,7 @@ exports.createCheckoutSession = onRequest(
           {
             price_data: {
               currency: "myr",
-              unit_amount: 999, // RM9.99
+              unit_amount: 999,
               recurring: { interval: "month" },
               product_data: {
                 name: "Minerva Student Pro",
@@ -54,7 +58,11 @@ exports.createCheckoutSession = onRequest(
 
 // ── 2. STRIPE WEBHOOK ───────────────────────────────────────────────────
 exports.stripeWebhook = onRequest(
-  { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET], rawBody: true },
+  {
+    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
+    rawBody: true,
+    invoker: "public"
+  },
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
     let event;
