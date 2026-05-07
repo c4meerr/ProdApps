@@ -6,6 +6,8 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+const STRIPE_PUBLISHABLE_KEY = "pk_live_51R27b1LIfE32E6iGTLadApWqpItwQ0fVHw9j7jwzBsTD2WBhmbMbXf0AiU8Z9BYpaRTYKAiqSrOX2cQJCl29QRS300QpsoJ9o0"; // your actual key from Stripe Dashboard
+const CREATE_CHECKOUT_URL = "https://createcheckoutsession-amowobpoxq-uc.a.run.app";
 
 // =========================================
 // 0b. FIRESTORE SYNC HELPERS
@@ -180,6 +182,25 @@ let userPlan = "free";
 
 document.addEventListener("DOMContentLoaded", () => {
   showPage("loginPage");
+  // STRIPE LOGIC
+  // Handle Stripe payment redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("payment") === "success") {
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        await loadAllFromCloud(user.uid, user.email);
+        const saved = localStorage.getItem(`userdata_${user.email}`);
+        if (saved) {
+          currentUser = JSON.parse(saved);
+          userPlan = currentUser.plan || "free";
+        }
+        applyPlanUI();
+        applyProfilePlanUI();
+        showXPToast("⭐ Welcome to Student Pro!", true);
+      }
+    });
+    window.history.replaceState({}, "", window.location.pathname);
+  }
 
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark-mode");
@@ -285,29 +306,48 @@ function applyProfilePlanUI() {
 }
 
 // Upgrade modal
-document.addEventListener("click", (e) => {
-  if (e.target.id === "upgradePlanBtn" || e.target.id === "modalUpgradeBtn") {
-    if (e.target.id === "upgradePlanBtn") {
-      document.getElementById("upgradeModal").style.display = "flex";
-    } else {
-      userPlan = "pro";
-      if (currentUser) {
-        currentUser.plan = "pro";
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-        localStorage.setItem(`userdata_${currentUser.email}`, JSON.stringify(currentUser));
-        saveFieldToCloud({ plan: "pro" });
+// REPLACE WITH THIS:
+document.addEventListener("click", async (e) => {
+  if (e.target.id === "upgradePlanBtn") {
+    document.getElementById("upgradeModal").style.display = "flex";
+  }
+
+  if (e.target.id === "modalUpgradeBtn") {
+    const btn = document.getElementById("modalUpgradeBtn");
+    btn.disabled = true;
+    btn.textContent = "Redirecting to payment...";
+
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not logged in");
+
+      const response = await fetch(CREATE_CHECKOUT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.uid,
+          userEmail: user.email
+        })
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "No checkout URL");
       }
-      document.getElementById("upgradeModal").style.display = "none";
-      applyPlanUI();
-      applyProfilePlanUI();
-      showXPToast("⭐ Welcome to Student Pro!", true);
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Payment failed: " + err.message);
+      btn.disabled = false;
+      btn.textContent = "Upgrade Now";
     }
   }
+
   if (e.target.id === "modalCloseBtn") {
     document.getElementById("upgradeModal").style.display = "none";
   }
 });
-
 
 // =========================================
 // 4. AUTHENTICATION (Firebase Auth)
