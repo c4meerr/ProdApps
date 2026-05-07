@@ -33,7 +33,7 @@ exports.createCheckoutSession = onRequest(
           {
             price_data: {
               currency: "myr",
-              unit_amount: 999,
+              unit_amount: 100,
               recurring: { interval: "month" },
               product_data: {
                 name: "Minerva Student Pro",
